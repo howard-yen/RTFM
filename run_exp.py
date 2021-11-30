@@ -86,10 +86,13 @@ def act(i: int, free_queue: mp.SimpleQueue, full_queue: mp.SimpleQueue,
         timings = prof.Timings()  # Keep track of how fast things are.
 
         gym_env = Net.create_env(flags)
+        print("actor gym env", gym_env)
         seed = i ^ int.from_bytes(os.urandom(4), byteorder='little')
         gym_env.seed(seed)
         env = environment.Environment(gym_env)
+        print("act env:", env)
         env_output = env.initial()
+        print("act env output:", env_output)
         agent_output = model(env_output)
         while True:
             index = free_queue.get()
@@ -270,6 +273,7 @@ def create_buffers(observation_shapes, num_actions, flags) -> Buffers:
 
 
 def train(flags):  # pylint: disable=too-many-branches, too-many-statements
+    from rtfm import featurizer as X
     if flags.xpid is None:
         flags.xpid = 'torchbeast-%s' % time.strftime('%Y%m%d-%H%M%S')
     plogger = file_writer.FileWriter(
@@ -361,6 +365,12 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
         while frames < flags.total_frames:
             timings.reset()
             batch = get_batch(free_queue, full_queue, buffers, flags, timings)
+            print("batch wiki tokens", batch["wiki_tokens"])
+            # print("batch is", batch)
+            # print("batch type", type(batch))
+            # print("batch keys", batch.keys())
+            # print("batch wiki", batch["wiki"].size())
+            # print("batch wiki", batch["wiki_len"].size())
 
             stats = learn(model, learner_model, batch, optimizer, scheduler,
                           flags)

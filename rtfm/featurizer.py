@@ -10,6 +10,7 @@ import revtok
 import random
 from pprint import pprint
 from rtfm.dynamics import monster as M, item as I, world_object as O, event as E
+from transformers import BertTokenizer
 
 
 class Featurizer:
@@ -202,6 +203,40 @@ class Symbol(Featurizer):
                 row.append(classes)
             smat.append(row)
         return {'symbol': torch.tensor(smat, dtype=torch.long)}
+
+class Language(Featurizer):
+
+    def __init__(self):
+        super().__init__()
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    def get_observation_space(self, task):
+        return {
+            "inv_tokens": (task.max_inv, ),
+            "wiki_tokens": (task.max_wiki, ),
+            "task_tokens": (task.max_task, ),
+        }
+
+    def featurize(self, task):
+        task_text = task.get_task()
+        wiki = task.get_wiki()
+        inv = task.get_inv()
+
+        task_tokens = self.tokenizer(task_text, padding="max_length", max_length=task.max_task)
+        wiki_tokens = self.tokenizer(wiki, padding="max_length", max_length=task.max_wiki)
+        inv_tokens = self.tokenizer(inv, padding="max_length", max_length=task.max_inv)
+
+        task_tokens = torch.tensor(task_tokens["input_ids"])
+        wiki_tokens = torch.tensor(wiki_tokens["input_ids"])
+        inv_tokens = torch.tensor(inv_tokens["input_ids"])
+
+        ret = {
+            "inv_tokens": task_tokens,
+            "wiki_tokens": wiki_tokens,
+            "task_tokens": inv_tokens,
+        }
+        return ret
+
 
 
 class Text(Featurizer):

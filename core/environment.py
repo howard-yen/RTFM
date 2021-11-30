@@ -34,6 +34,8 @@ class Environment:
             episode_step=self.episode_step,
         )
 
+        # keys are: name, name_len, inv, inv_len, wiki, wiki_len, task, task_len, valid, rel_pos
+        # want to add: wiki_tokens, inv_tokens, task_tokens
         frame = self.gym_env.reset()
         if isinstance(frame, dict):
             out.update({k: v.view((1, 1) + v.shape) for k, v in frame.items()})

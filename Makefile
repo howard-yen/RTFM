@@ -16,10 +16,14 @@ train:
 		--drnn_small 10 \
 		--drnn 100 \
 		--drep 400 \
-		--num_actors 20 \
-		--batch_size 8 \
+		--num_actors 1 \
+		--batch_size 1 \
 		--learning_rate 0.0007 \
-		--total_frames 2000 \
+		--total_frames 2 \
 		--height 6 \
-		--width 6
+		--width 6 \
+		--num_threads 1
+
+play:
+	python play_gym.py -c --env groups_nl --shuffle_wiki
 
