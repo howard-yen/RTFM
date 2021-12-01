@@ -237,6 +237,31 @@ class Language(Featurizer):
         }
         return ret
 
+class Visual(Featurizer):
+    def __init__(self):
+        super().__init__()
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.image_size = 16
+
+    def get_observation_space(self, task):
+        return {
+            "world_image": (task.world.height * self.image_size, task.world.width * self.image_size, 3, ),
+        }
+
+    def featurize(self, task):
+        world_map = task.world.map
+        world_image = torch.zeros((task.world.height * self.image_size, task.world.width * self.image_size, 3))
+
+        for i in task.world.width:
+            for j in task.world.height:
+                objects = world_map[(i, j)]
+
+        ret = {
+            "world_image": inv_tokens,
+        }
+        return ret
+
+
 class Text(Featurizer):
 
     def __init__(self, max_cache=1e6):
