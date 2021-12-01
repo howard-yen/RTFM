@@ -231,13 +231,11 @@ class Language(Featurizer):
         inv_tokens = torch.tensor(inv_tokens["input_ids"])
 
         ret = {
-            "inv_tokens": task_tokens,
+            "inv_tokens": inv_tokens,
             "wiki_tokens": wiki_tokens,
-            "task_tokens": inv_tokens,
+            "task_tokens": task_tokens,
         }
         return ret
-
-
 
 class Text(Featurizer):
 

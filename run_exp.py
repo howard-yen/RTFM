@@ -86,13 +86,10 @@ def act(i: int, free_queue: mp.SimpleQueue, full_queue: mp.SimpleQueue,
         timings = prof.Timings()  # Keep track of how fast things are.
 
         gym_env = Net.create_env(flags)
-        print("actor gym env", gym_env)
         seed = i ^ int.from_bytes(os.urandom(4), byteorder='little')
         gym_env.seed(seed)
         env = environment.Environment(gym_env)
-        print("act env:", env)
         env_output = env.initial()
-        print("act env output:", env_output)
         agent_output = model(env_output)
         while True:
             index = free_queue.get()

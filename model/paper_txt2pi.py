@@ -74,9 +74,15 @@ class Model(Base):
             return self.run_rnn(self.wiki_rnn, x, xlens), self.run_rnn(self.wiki_rnn2, x, xlens)
 
     def fuse(self, inputs, cell, inv, wiki, task):
+        print("in fuse")
+        print("inputs", inputs.keys())
         T, B, H, W, demb = cell.size()
         tb = torch.flatten(cell, 0, 1)  # (T*B, H, W, 3*demb)
         pos = inputs['rel_pos'].float().view(T*B, H, W, -1).transpose(1, 3)
+        print(pos)
+        print(inputs["name"].size(), inputs["name"])
+
+        #self.bert_model(inputs["inv_tokens"]...)
 
         wiki1, wiki2 = wiki
         wiki_lens = inputs['wiki_len'].view(-1).long()
