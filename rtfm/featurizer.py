@@ -256,7 +256,7 @@ class Visual(Featurizer):
                 objects = world_map[(i, j)]
 
         ret = {
-            "world_image": inv_tokens,
+            "world_image": world_image,
         }
         return ret
 

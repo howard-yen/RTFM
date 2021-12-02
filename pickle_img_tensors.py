@@ -6,6 +6,7 @@ import os
 import matplotlib.pyplot as plt
 
 ASSET_DIR = "./assets"
+RESOLUTION = 32
 
 if __name__ == "__main__":
     ret = {}
@@ -17,15 +18,22 @@ if __name__ == "__main__":
         entity_name = filename.split(".")[0]
 
         with Image.open(os.path.join(ASSET_DIR, filename)) as img:
-            img_tensor = to_tensor(img)
+            height, width = img.size
+            if height > width:
+                new_img = img.resize((RESOLUTION, (int)(RESOLUTION/height*width)), Image.ANTIALIAS)
+            else:
+                new_img = img.resize(((int)(RESOLUTION/width*height), RESOLUTION), Image.ANTIALIAS)
+
+            img_tensor = to_tensor(new_img)
         
-        ret[entity_name] = img_tensor
+        ret[entity_name] = img_tensor.permute(1,2,0)
 
         # for debugging
         # plt.imshow(img_tensor.permute(1,2,0))
         # plt.show()
         # plt.savefig(filename)
         # plt.clf()
+        # import pdb; pdb.set_trace()
     
     print("Dumping pickle")
     with open("img_tensors.p", "wb") as f:
