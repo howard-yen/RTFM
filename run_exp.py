@@ -46,6 +46,8 @@ from core import file_writer
 from core import prof
 from core import vtrace
 
+import logging
+logging.getLogger('matplotlib.font_manager').disabled = True
 
 Net = None
 
@@ -302,6 +304,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
 
     reso = 32
+    transparency_threshold = 0.1
     with open("img_tensors.p", "rb") as f:
         imgs = pickle.load(f)
 
@@ -310,7 +313,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
 
     for i in range(6):
         for j in range(6):
-            world_image[i*reso:i*reso+reso, j*reso:j*reso+reso] = imgs["empty"]
+            world_image[i*reso:i*reso+reso, j*reso:j*reso+reso] = imgs["empty"][:,:,:3]
             objects = world_map[(i, j)]
             for ob in objects:
                 ob_names = ob.name.split(" ")
@@ -320,11 +323,10 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
                     ob_name = ob_names[0]
                 ob_img = imgs[ob_name]
                 if ob_img.shape[2] == 4:
-                    mask = ob_img[:,:,2] > 0.5
+                    mask = ob_img[:,:,2] > transparency_threshold
                 else:
                     mask = torch.ones((reso,reso),dtype=bool)
 
-                print(i, j, ob_name)
                 world_image[i*reso:i*reso+mask.shape[0], j*reso:j*reso+mask.shape[1]][mask] = ob_img[:,:,:3][mask]
 
     plt.imshow(world_image)
