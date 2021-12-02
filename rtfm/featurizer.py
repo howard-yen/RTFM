@@ -240,7 +240,6 @@ class Language(Featurizer):
 class Visual(Featurizer):
     def __init__(self):
         super().__init__()
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.image_size = 16
 
     def get_observation_space(self, task):

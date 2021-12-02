@@ -45,6 +45,11 @@ class DoubleFILM(nn.Module):
 
 class Model(Base):
 
+    # overriden from paper_film.py
+    @classmethod
+    def create_env(cls, flags, featurizer=None):
+        return super().create_env(flags, featurizer=featurizer or X.Concat([X.Visual(), X.Language()]))
+
     def __init__(self, observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drnn_small, drep, pretrained_emb=False, disable_wiki=False):
         super().__init__(observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drnn_small, drep, pretrained_emb, disable_wiki=disable_wiki)
         self.film1 = DoubleFILM(2*drnn, drnn_small, 16, nn.Conv2d(demb+2, 16, kernel_size=(3, 3), padding=1))
@@ -58,8 +63,6 @@ class Model(Base):
         self.wiki_rnn2 = nn.LSTM(self.demb, drnn, bidirectional=True, batch_first=True)
         self.task_rnn = self.wiki_rnn
         self.task_scorer = nn.Linear(2*drnn, 1)
-
-        self.tokenizer = AutoTokenizer("visualjoyce/transformers4vl-vilbert")
 
     def encode_wiki(self, inputs):
         T, B, wiki_len = inputs['wiki'].size()
