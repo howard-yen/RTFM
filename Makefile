@@ -27,3 +27,5 @@ train:
 play:
 	python play_gym.py -c --env groups_nl --shuffle_wiki
 
+pickle-image:
+	python pickle_img_tensors.py
