@@ -11,6 +11,7 @@ import random
 from pprint import pprint
 from rtfm.dynamics import monster as M, item as I, world_object as O, event as E
 from transformers import BertTokenizer
+import pickle
 
 
 class Featurizer:
@@ -212,9 +213,18 @@ class Language(Featurizer):
 
     def get_observation_space(self, task):
         return {
-            "inv_tokens": (task.max_inv, ),
-            "wiki_tokens": (task.max_wiki, ),
-            "task_tokens": (task.max_task, ),
+            # "inv_input_ids": (task.max_inv, ),
+            # "wiki_input_ids": (task.max_wiki, ),
+            # "task_input_ids": (task.max_task, ),
+            # "inv_token_type_ids": (task.max_inv, ),
+            # "wiki_token_type_ids": (task.max_wiki, ),
+            # "task_token_type_ids": (task.max_task, ),
+            # "inv_attention_mask": (task.max_inv, ),
+            # "wiki_attention_mask": (task.max_wiki, ),
+            # "task_attention_mask": (task.max_task, ),
+            "input_ids": (task.max_inv + task.max_wiki + task.max_task, ),
+            "token_type_ids": (task.max_inv + task.max_wiki + task.max_task, ),
+            "attention_mask": (task.max_inv + task.max_wiki + task.max_task, ),
         }
 
     def featurize(self, task):
@@ -222,25 +232,88 @@ class Language(Featurizer):
         wiki = task.get_wiki()
         inv = task.get_inv()
 
-        task_tokens = self.tokenizer(task_text, padding="max_length", max_length=task.max_task)
-        wiki_tokens = self.tokenizer(wiki, padding="max_length", max_length=task.max_wiki)
-        inv_tokens = self.tokenizer(inv, padding="max_length", max_length=task.max_inv)
+        # task_tokens = self.tokenizer(task_text, padding="max_length", max_length=task.max_task)
+        # wiki_tokens = self.tokenizer(wiki, padding="max_length", max_length=task.max_wiki)
+        # inv_tokens = self.tokenizer(inv, padding="max_length", max_length=task.max_inv)
 
-        task_tokens = torch.tensor(task_tokens["input_ids"])
-        wiki_tokens = torch.tensor(wiki_tokens["input_ids"])
-        inv_tokens = torch.tensor(inv_tokens["input_ids"])
+        t_tokens = self.tokenizer.tokenize(task_text)
+        w_tokens = self.tokenizer.tokenize(wiki)
+        i_tokens = self.tokenizer.tokenize(inv)
 
-        ret = {
-            "inv_tokens": inv_tokens,
-            "wiki_tokens": wiki_tokens,
-            "task_tokens": task_tokens,
+        all_tokens = self.tokenizer(t_tokens, w_tokens + ["[SEP]"] + i_tokens, padding="max_length", max_length=task.max_task + task.max_wiki + task.max_inv, is_split_into_words=True, return_tensors="pt")
+
+        ret ={
+            "input_ids": all_tokens["input_ids"],
+            "token_type_ids": all_tokens["token_type_ids"],
+            "attention_mask": all_tokens["attention_mask"]
         }
+
+        # ret = {
+        #     "inv_input_ids": torch.tensor(inv_tokens["input_ids"]),
+        #     "wiki_input_ids": torch.tensor(wiki_tokens["input_ids"]),
+        #     "task_input_ids": torch.tensor(task_tokens["input_ids"]),
+        #     "inv_token_type_ids": torch.tensor(inv_tokens["token_type_ids"]),
+        #     "wiki_token_type_ids": torch.tensor(wiki_tokens["token_type_ids"]),
+        #     "task_token_type_ids": torch.tensor(task_tokens["token_type_ids"]),
+        #     "inv_attention_mask": torch.tensor(inv_tokens["attention_mask"]),
+        #     "wiki_attention_mask": torch.tensor(wiki_tokens["attention_mask"]),
+        #     "task_attention_mask": torch.tensor(task_tokens["attention_mask"]),
+        # }
+
         return ret
+
+class LanguageAll(Featurizer):
+
+    def __init__(self):
+        super().__init__()
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.max_world = 10 * 20 + 25
+
+    def get_observation_space(self, task):
+        return {
+            "input_ids": (task.max_inv + task.max_wiki + task.max_task + self.max_world, ),
+            "token_type_ids": (task.max_inv + task.max_wiki + task.max_task + self.max_world, ),
+            "attention_mask": (task.max_inv + task.max_wiki + task.max_task + self.max_world, ),
+        }
+
+    def featurize(self, task):
+        task_text = task.get_task()
+        wiki = task.get_wiki()
+        inv = task.get_inv()
+        world = self.describe_world(task.world)
+
+        t_tokens = self.tokenizer.tokenize(task_text)
+        w_tokens = self.tokenizer.tokenize(wiki)
+        i_tokens = self.tokenizer.tokenize(inv)
+        wo_tokens = self.tokenizer.tokenize(world)
+
+        all_tokens = self.tokenizer(t_tokens, w_tokens + ["[SEP]"] + i_tokens + ["[SEP]"] + wo_tokens, padding="max_length", max_length=task.max_task + task.max_wiki + task.max_inv + self.max_world, is_split_into_words=True, return_tensors="pt")
+
+        ret ={
+            "input_ids": all_tokens["input_ids"],
+            "token_type_ids": all_tokens["token_type_ids"],
+            "attention_mask": all_tokens["attention_mask"]
+        }
+
+        return ret
+
+    def describe_world(self, world):
+        desc = []
+        for i in range(world.width):
+            for j in range(world.height):
+                for ob in world.map[(i, j)]:
+                    desc.append(f"{ob.name} is at row {j} column {i}.")
+
+        return " ".join(desc)
+
 
 class Visual(Featurizer):
     def __init__(self):
         super().__init__()
-        self.image_size = 16
+        self.image_size = 32
+        self.transparency_threshold = 0.1
+        with open("img_tensors.p", "rb") as f:
+            self.imgs = pickle.load(f)
 
     def get_observation_space(self, task):
         return {
@@ -253,11 +326,30 @@ class Visual(Featurizer):
 
         for i in task.world.width:
             for j in task.world.height:
+                world_image[i*self.image_size:(i+1)*self.image_size, j*self.image_size:(j+1)*self.image_size] = self.imgs["empty"][:,:,:3]
                 objects = world_map[(i, j)]
+                for ob in objects:
+                    ob_names = ob.name.split(" ")
+                    if len(ob_names) > 1:
+                        ob_name = ob_names[1]
+                    else:
+                        ob_name = ob_names[0]
+
+                    ob_img = self.imgs[ob_name]
+                    mask = ob_img[:,:,2] > self.transparency_threshold
+
+                    world_image[i*self.image_size:i*self.image_size+mask.shape[0], j*self.image_size:j*self.image_size+mask.shape[1]][mask] = ob_img[:,:,:3][mask]
+
+        if False:
+            plt.imshow(world_image)
+            plt.show()
+            plt.savefig("worldimg.png")
+            plt.clf()
 
         ret = {
             "world_image": world_image,
         }
+
         return ret
 
 

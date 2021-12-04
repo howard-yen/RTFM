@@ -44,11 +44,6 @@ class DoubleFILM(nn.Module):
 
 class Model(Base):
 
-    # overriden from paper_film.py
-    @classmethod
-    def create_env(cls, flags, featurizer=None):
-        return super().create_env(flags, featurizer=featurizer or X.Concat([X.Text(), X.ValidMoves(), X.RelativePosition(), X.Language()]))
-
     def __init__(self, observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drnn_small, drep, pretrained_emb=False, disable_wiki=False):
         super().__init__(observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drnn_small, drep, pretrained_emb, disable_wiki=disable_wiki)
         self.film1 = DoubleFILM(2*drnn, drnn_small, 16, nn.Conv2d(demb+2, 16, kernel_size=(3, 3), padding=1))
@@ -74,13 +69,9 @@ class Model(Base):
             return self.run_rnn(self.wiki_rnn, x, xlens), self.run_rnn(self.wiki_rnn2, x, xlens)
 
     def fuse(self, inputs, cell, inv, wiki, task):
-        print("in fuse")
-        print("inputs", inputs.keys())
         T, B, H, W, demb = cell.size()
         tb = torch.flatten(cell, 0, 1)  # (T*B, H, W, 3*demb)
         pos = inputs['rel_pos'].float().view(T*B, H, W, -1).transpose(1, 3)
-        print(pos)
-        print(inputs["name"].size(), inputs["name"])
 
         #self.bert_model(inputs["inv_tokens"]...)
 
@@ -102,7 +93,4 @@ class Model(Base):
         c5, s5 = self.film5(c4+c3, a4, inv, task, pos, wiki_attn)
         conv_out = c5.max(3)[0].max(2)[0]  # pool over spatial dimensions
         flat = conv_out.view(T * B, -1)  # (T*B, -1)
-        # print(f"cell: {cell.size()}")
-        # print(f"keys: {inputs['task']}")
-        # print(f"inputs: {inputs}\ncell: {cell}\ninv: {inv}\nwiki: {wiki}\ntask: {task}")
         return self.fc(flat)  # (T*B, drep)
