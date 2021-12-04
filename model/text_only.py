@@ -20,7 +20,7 @@ class Model(Base):
     def __init__(self, observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drep, pretrained_emb=False, disable_wiki=False):
         super().__init__(observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drep, pretrained_emb, disable_wiki=disable_wiki)
 
-        self.bert = BertModel.from_pretrained("bert-base-uncased")
+        self.bert = BertModel.from_pretrained("bert-base-uncased", cache_dir=".cache")
         self.hidden_states_length = 768
         self.fc = nn.Sequential(
             nn.Linear(self.hidden_states_length, self.drep),
