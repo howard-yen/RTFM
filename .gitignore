@@ -9,6 +9,8 @@ __pycache__/
 *.yml
 .idea/
 rtfm/img/
+joblog/
+*.slurm
 
 # C extensions
 *.so
