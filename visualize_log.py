@@ -1,11 +1,14 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
+import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--log_file", type=str, help="Log file.")
     args = parser.parse_args()
+
+    assert os.path.exists(args.log_file)
 
     df = pd.read_csv(args.log_file)
 

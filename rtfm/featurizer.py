@@ -267,7 +267,8 @@ class LanguageAll(Featurizer):
     def __init__(self):
         super().__init__()
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.max_world = 10 * 20 + 25
+        # there are maximum five entities, each has at most 10 tokens. There is one more sentence for the walls, which should be only 10 tokens.
+        self.max_world = 10 * 5 + 10
 
     def get_observation_space(self, task):
         return {
@@ -302,7 +303,9 @@ class LanguageAll(Featurizer):
         for i in range(world.width):
             for j in range(world.height):
                 for ob in world.map[(i, j)]:
-                    desc.append(f"{ob.name} is at row {j} column {i}.")
+                    if ob.name != "wall":
+                        desc.append(f"{ob.name} is at row {j} column {i}.")
+        desc.append("There are walls along the border.")
 
         return " ".join(desc)
 
@@ -317,15 +320,15 @@ class Visual(Featurizer):
 
     def get_observation_space(self, task):
         return {
-            "world_image": (task.world.height * self.image_size, task.world.width * self.image_size, 3, ),
+            "world_image": (3, task.world.height * self.image_size, task.world.width * self.image_size, ),
         }
 
     def featurize(self, task):
         world_map = task.world.map
-        world_image = torch.zeros((task.world.height * self.image_size, task.world.width * self.image_size, 3))
+        world_image = torch.zeros((task.world.height * self.image_size, task.world.width * self.image_size, 3), dtype=torch.float32)
 
-        for i in task.world.width:
-            for j in task.world.height:
+        for i in range(task.world.width):
+            for j in range(task.world.height):
                 world_image[i*self.image_size:(i+1)*self.image_size, j*self.image_size:(j+1)*self.image_size] = self.imgs["empty"][:,:,:3]
                 objects = world_map[(i, j)]
                 for ob in objects:
@@ -347,7 +350,7 @@ class Visual(Featurizer):
             plt.clf()
 
         ret = {
-            "world_image": world_image,
+            "world_image": world_image.permute(2, 0, 1),
         }
 
         return ret

@@ -115,6 +115,8 @@ def act(i: int, free_queue: mp.SimpleQueue, full_queue: mp.SimpleQueue,
 
                 timings.time('model')
 
+                print("agent action", agent_output['action'])
+
                 env_output = env.step(agent_output['action'])
 
                 timings.time('step')
@@ -302,39 +304,6 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     model = Net.make(flags, env)
     buffers = create_buffers(env.observation_space, len(env.action_space), flags)
 
-    # reso = 32
-    # transparency_threshold = 0.1
-    # with open("img_tensors.p", "rb") as f:
-    #     imgs = pickle.load(f)
-
-    # world_map = env.env.world.map
-    # world_image = torch.zeros((6 * reso, reso * 6, 3))
-
-    # for i in range(6):
-    #     for j in range(6):
-    #         world_image[i*reso:i*reso+reso, j*reso:j*reso+reso] = imgs["empty"][:,:,:3]
-    #         objects = world_map[(i, j)]
-    #         for ob in objects:
-    #             ob_names = ob.name.split(" ")
-    #             if len(ob_names) > 1:
-    #                 ob_name = ob_names[1]
-    #             else:
-    #                 ob_name = ob_names[0]
-    #             ob_img = imgs[ob_name]
-    #             if ob_img.shape[2] == 4:
-    #                 mask = ob_img[:,:,2] > transparency_threshold
-    #             else:
-    #                 mask = torch.ones((reso,reso),dtype=bool)
-
-    #             world_image[i*reso:i*reso+mask.shape[0], j*reso:j*reso+mask.shape[1]][mask] = ob_img[:,:,:3][mask]
-
-    # plt.imshow(world_image)
-    # plt.show()
-    # plt.savefig("worldimg.png")
-    # plt.clf()
-
-    # import pdb; pdb.set_trace()
-
     model.share_memory()
 
     actor_processes = []
@@ -364,6 +333,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
     if flags.resume:
+        logging.info(f"Resuming training from {flags.resume}")
         save = torch.load(flags.resume, map_location='cpu')
         learner_model.load_state_dict(save['model_state_dict'])
         optimizer.load_state_dict(save['optimizer_state_dict'])

@@ -7,7 +7,7 @@
 import torch
 from torch import nn
 from model.reader import Model as Base
-from transformers import BertModel
+from transformers import BertModel, AutoModel
 from rtfm import featurizer as X
 
 class Model(Base):
@@ -20,8 +20,8 @@ class Model(Base):
     def __init__(self, observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drep, pretrained_emb=False, disable_wiki=False):
         super().__init__(observation_shape, num_actions, room_height, room_width, vocab, demb, drnn, drep, pretrained_emb, disable_wiki=disable_wiki)
 
-        self.bert = BertModel.from_pretrained("bert-base-uncased", cache_dir=".cache")
-        self.hidden_states_length = 768
+        self.bert = AutoModel.from_pretrained("prajjwal1/bert-tiny", cache_dir=".cache")
+        self.hidden_states_length = self.bert.config.hidden_size
         self.fc = nn.Sequential(
             nn.Linear(self.hidden_states_length, self.drep),
             nn.Tanh(),
@@ -38,7 +38,7 @@ class Model(Base):
 
     def encode_task(self, inputs):
         return None
-
+    
     def compute_aux_loss(self, inputs, cell, inv, wiki, task):
         T, *_ = inputs["task"].size()
         return torch.Tensor([0] * T).to(inputs["input_ids"].device)
@@ -52,9 +52,5 @@ class Model(Base):
 
         outputs = self.bert(**inputs)
         last_hidden_state = outputs.pooler_output
-        print(last_hidden_state.size())
 
-        output = self.fc(last_hidden_state)
-        print(output.size())
-        return output  # (T*B, drep)
-
+        return self.fc(last_hidden_state)  # (T*B, drep)
