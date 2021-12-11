@@ -52,9 +52,7 @@ class Model(Base):
 
         outputs = self.bert(**inputs)
         last_hidden_state = outputs.pooler_output
-        print(last_hidden_state.size())
 
         output = self.fc(last_hidden_state)
-        print(output.size())
         return output  # (T*B, drep)
 

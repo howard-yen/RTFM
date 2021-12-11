@@ -12,8 +12,9 @@ from rtfm.tasks.room import RoomTask
 from rtfm import featurizer as F, utils
 from rtfm.tasks import groups_templates
 
-
+random.seed(597)
 ALL_TYPES = [types.Cold, types.Fire, types.Lightning, types.Poison]
+# ALL_TYPES = ALL_TYPES[:4]
 
 
 def generate_all(all_monsters, all_groups, all_modifiers):
@@ -117,6 +118,9 @@ class Groups(RoomTask):
 
     def __init__(self, room_shape=(10, 10), featurizer=F.Progress(), partially_observable=False, max_placement=2, max_name=8, max_inv=10, max_wiki=80, max_task=40, time_penalty=-0.02, shuffle_wiki=False):
         self.configs = generate_all(self.monsters, self.groups, self.modifiers)[self.config_index]
+        self.configs = [self.configs[0]]
+        if self.config_index == 1:
+            self.configs = [(frozenset((("star alliance", ("panther", )), ("order of the forest", ("wolf", )), ("rebel enclave", ("jaguar", )))), frozenset(((3, ("grandmasters", )), (2, ("shimmering", )), (1, ("gleaming", )), (0, ("blessed", )))))]
         # what group of enemies to target
         self.target_monster = None
         self.target_group = None
@@ -183,8 +187,9 @@ class Groups(RoomTask):
             words = utils.tokenize(template)
             self.add_words(words)
 
-    def place_object(self, o):
-        pos = self.world.get_random_placeable_location(tries=20)
+    def place_object(self, o, pos=None):
+        if pos is None:
+            pos = self.world.get_random_placeable_location(tries=20)
         o.place(pos, self.world)
         return o
 
@@ -200,25 +205,51 @@ class Groups(RoomTask):
             self.group_assignment.append((group, monsters))
         for element, modifiers in sorted(list(sample_mod)):
             self.modifier_assignment.append((ALL_TYPES[element], modifiers))
-
-        self.agent = self.place_object(self.Agent())
+        
+        if self.config_index != 1:
+            self.agent = self.place_object(self.Agent())
+        else:
+            self.agent = self.place_object(self.Agent(), (2, 2))
 
         self.target_group, target_monsters = random.choice(self.group_assignment)
 
         # choose a target element
         target_element, target_modifiers = random.choice(self.modifier_assignment)
 
+        if self.config_index == 1:
+            self.modifier_assignment = self.modifier_assignment[:2]
+            self.group_assignment = self.group_assignment[:2]
+            self.target_group, target_monsters = self.group_assignment[0]
+            target_element, target_modifiers = self.modifier_assignment[0]
+            # print(self.modifier_assignment)
+            # print(self.group_assignment)
+            # print(target_monsters)
+            # print(target_element)
+            # print(target_modifiers)
+
         # choose a target monster
-        self.target_monster = self.place_object(self.Monster(target_element, name=random.choice(target_monsters)))
+        if self.config_index != 1:
+            self.target_monster = self.place_object(self.Monster(target_element, name=random.choice(target_monsters)))
+        else:
+            self.target_monster = self.place_object(self.Monster(target_element, name=random.choice(target_monsters)), (4, 3))
 
         # create a target item
-        good = self.place_object(I.Unarmed(hit=100, damage='1'))
+        target_item = random.choice(self.items)
+        if self.config_index == 1:
+            target_item = self.items[0]
+            # print(target_item)
+            good = self.place_object(I.Unarmed(hit=100, damage="1"), (3, 2))
+        else:
+            good = self.place_object(I.Unarmed(hit=100, damage='1'))
         good.add_elemental_damage(target_element, dmg=50)
-        good.name = '{} {}'.format(random.choice(target_modifiers), random.choice(self.items))
+        good.name = '{} {}'.format(random.choice(target_modifiers), target_item)
         good.char = 'y'
 
         # create a distractor item
-        self.distractor_item = bad = self.place_object(I.Unarmed(hit=100, damage='1'))
+        if self.config_index == 1:
+            self.distractor_item = bad = self.place_object(I.Unarmed(hit=100, damage='1'), (2,3))
+        else:
+            self.distractor_item = bad = self.place_object(I.Unarmed(hit=100, damage='1'))
         bad_element, bad_modifiers = random.choice([m for m in self.modifier_assignment if m[0] != target_element])
         bad.add_elemental_damage(bad_element, dmg=50)
         bad.name = '{} {}'.format(random.choice(bad_modifiers), random.choice(self.items))
@@ -226,7 +257,14 @@ class Groups(RoomTask):
 
         # create a distractor monster
         bad_group, bad_monsters = random.choice([g for g in self.group_assignment if g[0] != self.target_group])
-        self.distractor_monster = self.place_object(self.Monster(bad_element, name=random.choice(bad_monsters)))
+        if self.config_index == 1:
+            self.distractor_monster = self.place_object(self.Monster(bad_element, name=random.choice(bad_monsters)), (4, 2))
+            # print(bad_element)
+            # print(bad_modifiers)
+            # print(bad_group)
+            # print(bad_monsters)
+        else:
+            self.distractor_monster = self.place_object(self.Monster(bad_element, name=random.choice(bad_monsters)))
         self.distractor_monster.char = '?'
 
 
@@ -276,6 +314,10 @@ class GroupsSimpleDev(GroupsSimple):
 class GroupsSimpleStationary(GroupsStationary):
     monsters = Groups.monsters[:3]
     modifiers = Groups.modifiers[:4]
+    items = Groups.items[:4]
+    # config_index = 1
+    # items = Groups.items[:4]
+    # groups = Groups.groups[:2]
 
 
 class GroupsSimpleStationaryDev(GroupsSimpleStationary):

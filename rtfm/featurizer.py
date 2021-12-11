@@ -12,6 +12,7 @@ from pprint import pprint
 from rtfm.dynamics import monster as M, item as I, world_object as O, event as E
 from transformers import BertTokenizer
 import pickle
+import matplotlib.pyplot as plt
 
 
 class Featurizer:
@@ -278,10 +279,22 @@ class LanguageAll(Featurizer):
         }
 
     def featurize(self, task):
-        task_text = task.get_task()
+        task_text = "Your task is to " + task.get_task()
         wiki = task.get_wiki()
         inv = task.get_inv()
+        if len(inv) == 0:
+            inv = "Your inventory is empty."
+        else:
+            inv = f"You have {inv}."
         world = self.describe_world(task.world)
+
+        if False:
+            print("-"*10)
+            print(f"Task description: {task_text}")
+            print(f"Wiki description: {wiki}")
+            print(f"Inv description: {inv}")
+            print(f"World description: {world}")
+            print("-"*10)
 
         t_tokens = self.tokenizer.tokenize(task_text)
         w_tokens = self.tokenizer.tokenize(wiki)
@@ -304,7 +317,7 @@ class LanguageAll(Featurizer):
             for j in range(world.height):
                 for ob in world.map[(i, j)]:
                     if ob.name != "wall":
-                        desc.append(f"{ob.name} is at row {j} column {i}.")
+                        desc.append(f"{ob.name} is at row {j} column {i}." if ob.name != "you" else f"{ob.name} are at row {j} column {i}")
         desc.append("There are walls along the border.")
 
         return " ".join(desc)

@@ -38,7 +38,7 @@ class Model(Base):
 
     def encode_task(self, inputs):
         return None
-    
+
     def compute_aux_loss(self, inputs, cell, inv, wiki, task):
         T, *_ = inputs["task"].size()
         return torch.Tensor([0] * T).to(inputs["input_ids"].device)
