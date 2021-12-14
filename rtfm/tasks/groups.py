@@ -14,7 +14,7 @@ from rtfm.tasks import groups_templates
 
 random.seed(597)
 ALL_TYPES = [types.Cold, types.Fire, types.Lightning, types.Poison]
-# ALL_TYPES = ALL_TYPES[:4]
+ALL_TYPES = ALL_TYPES[:4]
 
 
 def generate_all(all_monsters, all_groups, all_modifiers):
@@ -59,7 +59,7 @@ def generate_all(all_monsters, all_groups, all_modifiers):
     all_assignments.sort()
 
     random.Random(0).shuffle(all_assignments)
-
+    all_assignments = all_assignments[:2]
     n = len(all_assignments) // 2
     train = all_assignments[:n]
     dev = all_assignments[n:]
@@ -117,10 +117,11 @@ class Groups(RoomTask):
             )
 
     def __init__(self, room_shape=(10, 10), featurizer=F.Progress(), partially_observable=False, max_placement=2, max_name=8, max_inv=10, max_wiki=80, max_task=40, time_penalty=-0.02, shuffle_wiki=False):
-        self.configs = generate_all(self.monsters, self.groups, self.modifiers)[self.config_index]
-        self.configs = [self.configs[0]]
-        if self.config_index == 1:
+        if self.config_index == 1 or self.config_index == 2:
             self.configs = [(frozenset((("star alliance", ("panther", )), ("order of the forest", ("wolf", )), ("rebel enclave", ("jaguar", )))), frozenset(((3, ("grandmasters", )), (2, ("shimmering", )), (1, ("gleaming", )), (0, ("blessed", )))))]
+        else:
+            self.configs = generate_all(self.monsters, self.groups, self.modifiers)[self.config_index]
+            self.configs = [self.configs[0]]
         # what group of enemies to target
         self.target_monster = None
         self.target_group = None
@@ -312,12 +313,20 @@ class GroupsSimpleDev(GroupsSimple):
 
 
 class GroupsSimpleStationary(GroupsStationary):
+    # monsters = Groups.monsters[:2]
+    # modifiers = Groups.modifiers[:2]
+    # items = Groups.items[:2]
+    # groups = Groups.groups[:2]
+
+    #for same setup
     monsters = Groups.monsters[:3]
     modifiers = Groups.modifiers[:4]
-    items = Groups.items[:4]
+
+    #for the same entities, same positions
     # config_index = 1
-    # items = Groups.items[:4]
-    # groups = Groups.groups[:2]
+
+    #for the same entities, different positions
+    config_index = 2
 
 
 class GroupsSimpleStationaryDev(GroupsSimpleStationary):

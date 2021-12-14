@@ -34,7 +34,7 @@ class Model(Base):
         self.preprocess = transforms.Compose([
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-        self.image_size = 192
+        self.image_size = 32 * room_height
 
     def encode_inv(self, inputs):
         return None
@@ -68,7 +68,7 @@ class Model(Base):
         for k, v in model_inputs.items():
             model_inputs[k] = v.view(-1, v.shape[-1])
 
-        visual_embeds = self.get_visual_embeddings(inputs["world_image"])
+        visual_embeds = self.get_visual_embeddings(inputs["world_image"].to(torch.float32))
         visual_token_type_ids = torch.ones(visual_embeds.shape[:-1], dtype=torch.long)
         visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float)
 
@@ -82,4 +82,5 @@ class Model(Base):
         last_hidden_state = outputs.pooler_output
 
         output = self.fc(last_hidden_state).view(-1, self.drep)
+        # print(f"output from vbert")
         return output  # (T*B, drep)

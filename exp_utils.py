@@ -94,4 +94,6 @@ def get_parser():
     # Additional Flags.
     parser.add_argument('--random_agent', action='store_true',
                         help='Use a random agent to test the env.')
+    parser.add_argument('--wandb', action='store_true',
+                        help='Use wandb for logging.')
     return parser

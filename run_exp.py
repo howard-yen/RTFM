@@ -20,6 +20,7 @@ import tqdm
 import importlib
 import pickle
 import matplotlib.pyplot as plt
+import wandb
 
 os.environ['OMP_NUM_THREADS'] = '1'
 
@@ -98,6 +99,7 @@ def act(i: int, free_queue: mp.SimpleQueue, full_queue: mp.SimpleQueue,
         while True:
             index = free_queue.get()
             if index is None:
+                print("no index in act")
                 break
 
             # Write old rollout end.
@@ -114,8 +116,6 @@ def act(i: int, free_queue: mp.SimpleQueue, full_queue: mp.SimpleQueue,
                     agent_output = model(env_output)
 
                 timings.time('model')
-
-                print("agent action", agent_output['action'])
 
                 env_output = env.step(agent_output['action'])
 
@@ -304,6 +304,9 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     model = Net.make(flags, env)
     buffers = create_buffers(env.observation_space, len(env.action_space), flags)
 
+    num_params = sum([p.numel() for p in model.parameters()])
+    logging.info(f"Number of parameters in model = {num_params}")
+
     model.share_memory()
 
     actor_processes = []
@@ -431,6 +434,8 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
             logging.info('After %i frames: loss %f @ %.1f fps. %sStats:\n%s',
                          frames, total_loss, fps, mean_return,
                          pprint.pformat(stats))
+            if flags.wandb:
+                wandb.log(stats)
     except KeyboardInterrupt:
         return  # Try joining actors then quit.
     else:
@@ -447,7 +452,7 @@ def train(flags):  # pylint: disable=too-many-branches, too-many-statements
     plogger.close()
 
 
-def test(flags, num_eps: int = 1000):
+def test(flags, num_eps: int = 50):
     from rtfm import featurizer as X
     gym_env = Net.create_env(flags)
     if flags.mode == 'test_render':
@@ -465,6 +470,10 @@ def test(flags, num_eps: int = 1000):
                                                  'model.tar')))
         checkpoint = torch.load(checkpointpath, map_location='cpu')
         model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"Loaded model from {checkpointpath}")
+
+    num_params = sum([p.numel() for p in model.parameters()])
+    logging.info(f"Number of parameters in model = {num_params}")
 
     observation = env.initial()
     returns = []
@@ -474,7 +483,24 @@ def test(flags, num_eps: int = 1000):
     while len(won) < num_eps:
         done = False
         steps = 0
+        world = env.gym_env.env.world.map
+        everything = []
+        for k, v in world.items():
+            everything += [i.name for i in list(v) if i.name != "wall"]
+        print(f"This world contains: {everything}")
+
         while not done:
+            # limit the number of steps, assume loss if too long
+            if steps > 150:
+                returns.append(-1)
+                won.append(0)
+                ep_len.append(steps)
+                env.gym_env.reset()
+                done = True
+                print(f"Episode ran on for too long, assume loss.")
+                break
+
+            #print(f"Running steps {steps}")
             if flags.random_agent:
                 action = torch.zeros(1, 1, dtype=torch.int32)
                 action[0][0] = random.randint(0, gym_env.action_space.n - 1)
@@ -493,6 +519,7 @@ def test(flags, num_eps: int = 1000):
                 returns.append(observation['episode_return'].item())
                 won.append(observation['reward'][0][0].item() > 0.5)
                 ep_len.append(steps)
+                print(f"Episode ended after {observation['episode_step'].item()} steps. Return: {observation['episode_return'].item()}.")
                 # logging.info('Episode ended after %d steps. Return: %.1f',
                 #              observation['episode_step'].item(),
                 #              observation['episode_return'].item())
@@ -512,12 +539,15 @@ def test(flags, num_eps: int = 1000):
                         time.sleep(float(done_seconds))
 
     env.close()
-    logging.info('Average returns over %i episodes: %.2f. Win rate: %.2f. Entropy: %.2f. Len: %.2f', num_eps, sum(returns)/len(returns), sum(won)/len(returns), sum(entropy)/max(1, len(entropy)), sum(ep_len)/len(ep_len))
+    logging.info('Average returns over %i episodes: %.3f. Win rate: %.3f. Entropy: %.3f. Len: %.3f', num_eps, sum(returns)/len(returns), sum(won)/len(returns), sum(entropy)/max(1, len(entropy)), sum(ep_len)/len(ep_len))
 
 
 def main(flags):
     flags.num_buffers = 2 * flags.num_actors
 
+    if flags.wandb:
+        wandb.init(project="rtfm", group="same entities, same positions")
+        wandb.config.update(flags)
     global Net
     Net = importlib.import_module('model.{}'.format(flags.model)).Model
 
